@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-server
+.vscode
+.github
+.git
+*.md
+*.db
+*.code-workspace
+start-server.ps1

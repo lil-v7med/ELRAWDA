@@ -1,0 +1,13 @@
+services:
+  elrawda:
+    image: elrawda-family-finance
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: development
+      DEBUG: "*"
+    ports:
+      - 5000:5000
+      - 9229:9229
+    command: ["node", "--inspect=0.0.0.0:9229", "dist-server/server.js"]

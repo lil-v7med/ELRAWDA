@@ -1,0 +1,30 @@
+name: ELRAWDA CI Build Verify
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Verify TypeScript & Build Frontend
+      run: npm run build:client
+
+    - name: Verify TypeScript & Build Backend
+      run: npm run build:server

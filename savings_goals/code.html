@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ELRAWDA - Savings &amp; Goal Tracking</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Poppins:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-tertiary": "#ffffff",
+                            "surface": "#f9f9ff",
+                            "primary-container": "#2170e4",
+                            "error-container": "#ffdad6",
+                            "surface-container-high": "#e6e7f2",
+                            "on-error": "#ffffff",
+                            "on-primary-fixed": "#001a42",
+                            "on-primary": "#ffffff",
+                            "tertiary-fixed": "#acedff",
+                            "secondary-container": "#8455ef",
+                            "primary": "#0058be",
+                            "inverse-surface": "#2e3038",
+                            "on-primary-fixed-variant": "#004395",
+                            "inverse-on-surface": "#eff0fa",
+                            "surface-container-highest": "#e1e2ec",
+                            "outline-variant": "#c2c6d6",
+                            "secondary": "#6b38d4",
+                            "on-tertiary-fixed-variant": "#004e5c",
+                            "on-primary-container": "#fefcff",
+                            "primary-fixed-dim": "#adc6ff",
+                            "primary-fixed": "#d8e2ff",
+                            "on-error-container": "#93000a",
+                            "on-tertiary-container": "#f9fdff",
+                            "surface-tint": "#005ac2",
+                            "on-secondary-fixed-variant": "#5516be",
+                            "outline": "#727785",
+                            "surface-dim": "#d8d9e3",
+                            "secondary-fixed": "#e9ddff",
+                            "background": "#f9f9ff",
+                            "surface-container-low": "#f2f3fd",
+                            "on-surface": "#191b23",
+                            "tertiary-container": "#008096",
+                            "on-background": "#191b23",
+                            "surface-container": "#ecedf7",
+                            "tertiary-fixed-dim": "#4cd7f6",
+                            "on-tertiary-fixed": "#001f26",
+                            "surface-container-lowest": "#ffffff",
+                            "inverse-primary": "#adc6ff",
+                            "secondary-fixed-dim": "#d0bcff",
+                            "on-secondary-container": "#fffbff",
+                            "tertiary": "#006577",
+                            "error": "#ba1a1a",
+                            "surface-bright": "#f9f9ff",
+                            "on-secondary": "#ffffff",
+                            "surface-variant": "#e1e2ec",
+                            "on-secondary-fixed": "#23005c",
+                            "on-surface-variant": "#424754"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.25rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px",
+                            "2xl": "1.5rem"
+                    },
+                    "spacing": {
+                            "card-gap": "24px",
+                            "container-padding": "32px",
+                            "gutter": "24px",
+                            "section-margin": "48px"
+                    },
+                    "fontFamily": {
+                            "body-md": ["Inter"],
+                            "label-md": ["Inter"],
+                            "headline-xl": ["Poppins"],
+                            "label-sm": ["Inter"],
+                            "headline-lg-mobile": ["Poppins"],
+                            "headline-md": ["Poppins"],
+                            "headline-lg": ["Poppins"],
+                            "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                            "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                            "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                            "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                            "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                            "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                            "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                            "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Base Glassmorphism utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        }
+        
+        .glass-button {
+            background: linear-gradient(135deg, var(--tw-colors-primary), var(--tw-colors-secondary));
+            transition: all 0.3s ease;
+        }
+        .glass-button:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+            box-shadow: 0 10px 20px -10px var(--tw-colors-primary);
+        }
+
+        /* SVG Circle Animation */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 1s ease-in-out;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex overflow-hidden font-body-md text-body-md">
+<!-- Atmospheric Background Shader/Blobs -->
+<div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+<div class="absolute top-[-10%] left-[-5%] w-[50vw] h-[50vw] rounded-full bg-primary-fixed-dim/30 blur-[100px] mix-blend-multiply opacity-70"></div>
+<div class="absolute bottom-[-10%] right-[-5%] w-[60vw] h-[60vw] rounded-full bg-secondary-fixed-dim/20 blur-[120px] mix-blend-multiply opacity-60"></div>
+</div>
+<!-- SideNavBar Component -->
+<nav class="hidden md:flex flex-col fixed left-0 top-0 h-screen w-64 glass-panel border-r border-white/40 z-40 p-4 gap-2 transition-all duration-300 ease-in-out">
+<!-- Header -->
+<div class="flex items-center gap-3 px-4 py-6 mb-4 border-b border-white/30">
+<img alt="ELRAWDA Brand Icon" class="w-10 h-10 object-contain drop-shadow-sm rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOJ9DKPP9X1Xen6i9IJn67lr-U-VNQGEXnIvQu6anV5_IgTm-Bnzt5RXKVNCzRRTVduomYeZa3ik590TLx4t81CQqm-laQiPSmCEHjETm4lt67GEGqw-eZ9YvnJKzfuzM6r1jgBuQI8eM_KIBkwpV_f5seWtqWzPYxHbbnLONyADydWemi6SYpnl_w1l_26Nzmr1DQhissOCeRml00F_XjtfB9dlumriDj5k3SdwDrF0TxNDtUIre4ENoeGo2YAE5plhL7gzYkNtI"/>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim tracking-tight">ELRAWDA</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Wealth Management</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 flex flex-col gap-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-outline-variant hover:bg-white/40 rounded-xl hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">grid_view</span>
+                Overview
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-outline-variant hover:bg-white/40 rounded-xl hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">analytics</span>
+                Analytics
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-outline-variant hover:bg-white/40 rounded-xl hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">group</span>
+                Family Members
+            </a>
+<!-- Active State -->
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md bg-primary-container text-on-primary-container rounded-xl shadow-sm hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">ads_click</span>
+                Goal Tracking
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant dark:text-outline-variant hover:bg-white/40 rounded-xl hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">history</span>
+                Archive
+            </a>
+</div>
+<!-- Footer / CTA -->
+<div class="mt-auto pt-4 flex flex-col gap-2 border-t border-white/30">
+<button class="w-full py-3 px-4 rounded-xl font-label-md text-label-md text-white glass-button flex justify-center items-center gap-2 mb-2">
+                Upgrade Plan
+                <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
+</button>
+<a class="flex items-center gap-3 px-4 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-white/40 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+                Help Center
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 font-label-md text-label-md text-error hover:bg-error-container/20 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 p-container-padding h-screen overflow-y-auto">
+<!-- Header Section -->
+<header class="flex justify-between items-end mb-section-margin pt-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-2">Savings Goals</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Track and manage your family's financial milestones.</p>
+</div>
+<button class="hidden sm:flex items-center gap-2 px-6 py-3 rounded-full font-label-md text-label-md bg-white/50 border border-white hover:bg-white/70 transition-colors shadow-sm text-primary">
+<span class="material-symbols-outlined">add</span>
+                New Goal
+            </button>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-card-gap">
+<!-- Goal Card (Hero) -->
+<div class="glass-panel rounded-2xl p-8 lg:col-span-3 flex flex-col md:flex-row items-center justify-between relative overflow-hidden group">
+<!-- Decorative background elements inside card -->
+<div class="absolute -right-20 -top-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-500"></div>
+<div class="flex-1 mb-8 md:mb-0 z-10 w-full">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-12 h-12 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">home_work</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Primary Goal</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">House Down Payment</h3>
+</div>
+</div>
+<div class="flex items-end gap-4 mb-2">
+<span class="font-headline-xl text-headline-xl text-primary">$45,000</span>
+<span class="font-body-lg text-body-lg text-on-surface-variant mb-2">/ $120,000</span>
+</div>
+<p class="font-label-md text-label-md text-tertiary">37.5% Funded • Expected Nov 2025</p>
+</div>
+<!-- Progress Circle -->
+<div class="relative w-48 h-48 flex-shrink-0 z-10 flex items-center justify-center">
+<svg class="w-full h-full drop-shadow-md" viewbox="0 0 160 160">
+<!-- Background Circle -->
+<circle cx="80" cy="80" fill="none" r="70" stroke="rgba(255,255,255,0.5)" stroke-width="12"></circle>
+<!-- Progress Circle -->
+<circle class="progress-ring__circle" cx="80" cy="80" fill="none" r="70" stroke="url(#gradient)" stroke-dasharray="439.8" stroke-dashoffset="274.8" stroke-linecap="round" stroke-width="12"></circle> <!-- 439.8 * (1 - 0.375) -->
+<defs>
+<lineargradient id="gradient" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="var(--tw-colors-primary)"></stop>
+<stop offset="100%" stop-color="var(--tw-colors-secondary)"></stop>
+</lineargradient>
+</defs>
+</svg>
+<!-- Inner Text -->
+<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+<span class="font-headline-lg text-headline-lg text-on-surface">37%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Completed</span>
+</div>
+</div>
+</div>
+<!-- Savings History Table -->
+<div class="glass-panel rounded-2xl p-6 lg:col-span-2 flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface text-[20px]">Recent Contributions</h3>
+<button class="font-label-md text-label-md text-primary hover:text-primary-fixed-variant transition-colors flex items-center gap-1">
+                        View All <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-white/40">
+<th class="py-3 px-2 font-label-md text-label-md text-on-surface-variant">Date</th>
+<th class="py-3 px-2 font-label-md text-label-md text-on-surface-variant">Source</th>
+<th class="py-3 px-2 font-label-md text-label-md text-on-surface-variant text-right">Amount</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="border-b border-white/20 hover:bg-white/20 transition-colors">
+<td class="py-4 px-2">Oct 15, 2023</td>
+<td class="py-4 px-2 flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-surface flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-primary">account_balance</span>
+</div>
+                                    Auto-Transfer
+                                </td>
+<td class="py-4 px-2 text-right font-label-md text-label-md text-tertiary">+$1,500.00</td>
+</tr>
+<tr class="border-b border-white/20 hover:bg-white/20 transition-colors">
+<td class="py-4 px-2">Oct 01, 2023</td>
+<td class="py-4 px-2 flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-surface flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">card_giftcard</span>
+</div>
+                                    Bonus Deposit
+                                </td>
+<td class="py-4 px-2 text-right font-label-md text-label-md text-tertiary">+$5,000.00</td>
+</tr>
+<tr class="hover:bg-white/20 transition-colors">
+<td class="py-4 px-2">Sep 15, 2023</td>
+<td class="py-4 px-2 flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-surface flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-primary">account_balance</span>
+</div>
+                                    Auto-Transfer
+                                </td>
+<td class="py-4 px-2 text-right font-label-md text-label-md text-tertiary">+$1,500.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Suggested Monthly Savings Widget -->
+<div class="glass-panel rounded-2xl p-6 lg:col-span-1 flex flex-col justify-between relative overflow-hidden">
+<!-- Soft glow behind widget -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-2xl"></div>
+<div>
+<div class="flex items-center gap-2 mb-4 text-secondary">
+<span class="material-symbols-outlined">lightbulb</span>
+<h3 class="font-label-md text-label-md uppercase tracking-wider">Smart Suggestion</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-6">
+                        To reach your goal of <strong>$120,000</strong> by <strong>Nov 2025</strong>, we recommend adjusting your monthly auto-transfer.
+                    </p>
+<div class="bg-white/40 rounded-xl p-4 mb-6 border border-white/50">
+<span class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Suggested Monthly Amount</span>
+<span class="font-headline-md text-headline-md text-primary">$3,125</span>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl font-label-md text-label-md text-primary bg-white hover:bg-surface-container-low transition-colors shadow-sm border border-white/60">
+                    Update Auto-Transfer
+                </button>
+</div>
+</div>
+</main>
+<script>
+        // Simple script to trigger the SVG circle animation slightly after load
+        document.addEventListener('DOMContentLoaded', () => {
+            const circle = document.querySelector('.progress-ring__circle');
+            if(circle) {
+                // Force a reflow
+                void circle.offsetWidth;
+                // Add the offset class/style dynamically if we wanted to animate from 0
+                // It's currently hardcoded in the HTML for simplicity and static rendering speed
+            }
+        });
+    </script>
+</body></html>
