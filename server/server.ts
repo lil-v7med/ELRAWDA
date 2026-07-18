@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -8,6 +9,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { initDB, run, query } from './db.js';
+import { validateEmailConfig } from './services/emailService.js';
 import authRouter from './routes/auth.js';
 import transactionRouter from './routes/transactions.js';
 import savingsRouter from './routes/savings.js';
@@ -112,9 +114,23 @@ app.get('*', (req, res) => {
 
 // Boot the database and start server listening
 async function startServer() {
+  validateEmailConfig();
   try {
     await initDB();
     console.log('Normalized database initialized successfully.');
+    
+    // Background interval to clean up expired reset codes hourly
+    setInterval(async () => {
+      try {
+        const deleted = await run('DELETE FROM password_resets WHERE expires_at < ?', [new Date().toISOString()]);
+        if (deleted.changes > 0) {
+          console.log(`[CLEANUP] Automatically pruned ${deleted.changes} expired password reset records.`);
+        }
+      } catch (err) {
+        console.error('[CLEANUP ERROR] Failed to prune expired password resets:', err);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+
     app.listen(PORT, () => {
       console.log(`==========================================================`);
       console.log(`  ELRAWDA Wealth Management Backend Server Active`);

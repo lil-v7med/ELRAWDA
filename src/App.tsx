@@ -6,6 +6,10 @@ import { LanguageProvider, useTranslation } from './context/LanguageContext.tsx'
 // Import Pages
 import Landing from './pages/Landing.tsx';
 import Login from './pages/Login.tsx';
+import ForgotPassword from './pages/ForgotPassword.tsx';
+import VerifyResetCode from './pages/VerifyResetCode.tsx';
+import ResetPassword from './pages/ResetPassword.tsx';
+import ResetPasswordSuccess from './pages/ResetPasswordSuccess.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import Income from './pages/Income.tsx';
 import Expenses from './pages/Expenses.tsx';
@@ -137,6 +141,22 @@ const App: React.FC = () => {
         <Route 
           path="/login" 
           element={user ? <Navigate to="/dashboard" replace /> : <Login onLoginSuccess={handleLoginSuccess} showToast={showToast} />} 
+        />
+        <Route 
+          path="/forgot-password" 
+          element={user ? <Navigate to="/dashboard" replace /> : <ForgotPassword showToast={showToast} />} 
+        />
+        <Route 
+          path="/verify-reset-code" 
+          element={user ? <Navigate to="/dashboard" replace /> : <VerifyResetCode showToast={showToast} />} 
+        />
+        <Route 
+          path="/reset-password" 
+          element={user ? <Navigate to="/dashboard" replace /> : <ResetPassword showToast={showToast} />} 
+        />
+        <Route 
+          path="/reset-password-success" 
+          element={user ? <Navigate to="/dashboard" replace /> : <ResetPasswordSuccess />} 
         />
 
         {/* Private Workspace paths */}

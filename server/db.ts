@@ -180,6 +180,22 @@ export async function initDB() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      reset_token TEXT UNIQUE NOT NULL,
+      hashed_code TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      used_at DATETIME NULL,
+      attempts INTEGER DEFAULT 0,
+      ip_address TEXT,
+      user_agent TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   // Seed default data if users table is empty
   const userCount = await get(`SELECT COUNT(*) as count FROM users`);
   if (userCount.count === 0) {
@@ -295,6 +311,13 @@ export async function initDB() {
   try {
     await run(`ALTER TABLE expenses ADD COLUMN savings_goal_id INTEGER REFERENCES savings_goals(id) ON DELETE SET NULL`);
     console.log('Migration: Added savings_goal_id to expenses');
+  } catch (err) {
+    // Column might already exist, ignore
+  }
+
+  try {
+    await run(`ALTER TABLE users ADD COLUMN password_changed_at DATETIME`);
+    console.log('Migration: Added password_changed_at to users');
   } catch (err) {
     // Column might already exist, ignore
   }

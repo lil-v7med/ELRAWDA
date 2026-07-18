@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { get } from '../db.js';
 
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
   console.error("FATAL ERROR: JWT_SECRET environment variable must be set in production!");
@@ -17,7 +18,7 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let token = req.cookies?.token;
 
   if (!token && req.headers.authorization) {
@@ -37,8 +38,29 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
       email: string;
       role: string;
       name: string;
+      iat?: number;
     };
-    req.user = decoded;
+
+    // Check if the user password has been changed since the token was issued
+    const user = await get('SELECT id, email, name, role, password_changed_at FROM users WHERE id = ?', [decoded.id]);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: User no longer exists' });
+    }
+
+    if (user.password_changed_at && decoded.iat) {
+      const changedTime = new Date(user.password_changed_at).getTime();
+      const tokenIssuedTime = decoded.iat * 1000;
+      if (tokenIssuedTime < changedTime) {
+        return res.status(401).json({ error: 'Unauthorized: Session invalidated due to password change' });
+      }
+    }
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name
+    };
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Unauthorized: Session invalid or expired' });

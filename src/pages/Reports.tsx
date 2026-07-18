@@ -127,7 +127,28 @@ const Reports: React.FC<{ user: any; onOpenCommandPalette: () => void; showToast
   };
 
   // Trigger export CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    if ((import.meta as any).env.VITE_BACKEND_PROVIDER === 'supabase') {
+      try {
+        const res = await api.get('/reports/export', {
+          params: preset === 'custom' && startDate && endDate ? { startDate, endDate } : {}
+        });
+        const csvContent = res.data;
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `elrawda_transactions_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(t('CSV transaction report downloaded.'), 'success');
+      } catch (err: any) {
+        showToast(t('Failed to export transactions.'), 'error');
+      }
+      return;
+    }
+
     let url = '/api/reports/export';
     if (preset === 'custom' && startDate && endDate) {
       url += `?startDate=${startDate}&endDate=${endDate}`;

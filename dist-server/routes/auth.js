@@ -1,8 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { run, get, query } from '../db.js';
 import { authMiddleware, JWT_SECRET } from '../middleware/auth.js';
+import { emailService } from '../services/emailService.js';
+function hashOTP(code) {
+    return crypto.createHash('sha256').update(code).digest('hex');
+}
+function timingSafeCompare(a, b) {
+    const bufA = Buffer.from(a, 'hex');
+    const bufB = Buffer.from(b, 'hex');
+    if (bufA.length !== bufB.length)
+        return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
 const router = Router();
 // Log audit helper
 async function logAudit(userId, action, req) {
@@ -247,6 +259,248 @@ router.post('/delete-account', authMiddleware, async (req, res) => {
         await run('DELETE FROM users WHERE id = ?', [userId]);
         res.clearCookie('token');
         res.json({ message: 'Account and associated financial data permanently deleted' });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// 10. FORGOT PASSWORD REQUEST
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email address is required' });
+        }
+        const normalizedEmail = email.toLowerCase().trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(normalizedEmail)) {
+            return res.status(400).json({ error: 'Please enter a valid email address' });
+        }
+        const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+        const ua = req.headers['user-agent'] || 'Unknown';
+        // Rate Limiting check: max 5 requests per email or IP address within the last 15 minutes
+        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const user = await get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
+        let activeResetCount = 0;
+        if (user) {
+            const rateCheck = await get(`
+        SELECT COUNT(*) as count FROM password_resets 
+        WHERE (user_id = ? OR ip_address = ?) AND created_at > ?
+      `, [user.id, ip, fifteenMinsAgo]);
+            activeResetCount = rateCheck.count;
+        }
+        else {
+            const rateCheck = await get(`
+        SELECT COUNT(*) as count FROM password_resets 
+        WHERE ip_address = ? AND created_at > ?
+      `, [ip, fifteenMinsAgo]);
+            activeResetCount = rateCheck.count;
+        }
+        if (activeResetCount >= 5) {
+            await logAudit(user ? user.id : null, 'Password Reset Blocked: Rate limit exceeded', req);
+            return res.status(429).json({ error: 'Too many requests. Please wait 15 minutes before trying again.' });
+        }
+        const successMessage = "If an account exists with this email, we've sent a verification code.";
+        if (user) {
+            // Invalidate previous unused codes
+            await run('UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL', [new Date().toISOString(), user.id]);
+            // Generate secure reset token (UUID) and secure 6-digit verification code
+            const resetToken = crypto.randomUUID();
+            const code = crypto.randomInt(100000, 999999).toString();
+            const hashedCode = hashOTP(code);
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+            // Store in DB
+            const createdAt = new Date().toISOString();
+            await run(`
+        INSERT INTO password_resets (user_id, reset_token, hashed_code, expires_at, created_at, ip_address, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [user.id, resetToken, hashedCode, expiresAt, createdAt, ip, ua]);
+            // Dispatch professional HTML email
+            await emailService.sendResetEmail(normalizedEmail, code);
+            await logAudit(user.id, 'Password Reset Requested', req);
+            await logAudit(user.id, 'Verification Code Sent', req);
+            return res.status(200).json({ message: successMessage, resetToken });
+        }
+        else {
+            // Simulate database hashing/writing delay and return dummy token to prevent timing attacks
+            const dummyDelay = 200 + Math.floor(Math.random() * 300);
+            await new Promise(resolve => setTimeout(resolve, dummyDelay));
+            const dummyToken = crypto.randomUUID();
+            await logAudit(null, `Anonymous Password Reset Attempt: ${normalizedEmail}`, req);
+            return res.status(200).json({ message: successMessage, resetToken: dummyToken });
+        }
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// 11. VERIFY RESET CODE
+router.post('/verify-reset-code', async (req, res) => {
+    try {
+        const { resetToken, code } = req.body;
+        if (!resetToken || !code) {
+            return res.status(400).json({ error: 'Reset token and verification code are required' });
+        }
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({ error: 'Verification code must be exactly 6 digits' });
+        }
+        // Find the code record
+        const record = await get(`
+      SELECT r.*, u.email FROM password_resets r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.reset_token = ? AND r.used_at IS NULL
+    `, [resetToken]);
+        if (!record) {
+            // Simulate delay to prevent brute-forcing token presence/timing
+            await new Promise(resolve => setTimeout(resolve, 150));
+            await logAudit(null, 'Reset Code Verification Failed: Token not found or already used', req);
+            return res.status(400).json({ error: 'Invalid or expired verification code.' });
+        }
+        const now = new Date().toISOString();
+        if (record.expires_at < now) {
+            await run('UPDATE password_resets SET used_at = ? WHERE id = ?', [now, record.id]);
+            await logAudit(record.user_id, 'Verification Code Expired', req);
+            return res.status(400).json({ error: 'Verification code has expired.' });
+        }
+        if (record.attempts >= 5) {
+            // Invalidate the code
+            await run('UPDATE password_resets SET used_at = ? WHERE id = ?', [now, record.id]);
+            // Auto-generate new code & reset cooldown/attempts, send new email
+            const newCode = crypto.randomInt(100000, 999999).toString();
+            const newHashed = hashOTP(newCode);
+            const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+            const newResetToken = crypto.randomUUID();
+            const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+            const ua = req.headers['user-agent'] || 'Unknown';
+            const newCreatedAt = new Date().toISOString();
+            await run(`
+        INSERT INTO password_resets (user_id, reset_token, hashed_code, expires_at, created_at, ip_address, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [record.user_id, newResetToken, newHashed, newExpiresAt, newCreatedAt, ip, ua]);
+            await emailService.sendResetEmail(record.email, newCode);
+            await logAudit(record.user_id, 'Too Many Attempts: Verification code regenerated', req);
+            return res.status(400).json({
+                error: 'Too many attempts. A new verification code has been sent to your email.',
+                resetToken: newResetToken
+            });
+        }
+        // Increment attempt counter
+        await run('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [record.id]);
+        // Verify OTP using timing-safe comparison over SHA-256 hashes
+        const inputHash = hashOTP(code);
+        const isValid = timingSafeCompare(inputHash, record.hashed_code);
+        if (!isValid) {
+            await logAudit(record.user_id, 'Verification Failed: Incorrect code', req);
+            return res.status(400).json({ error: 'Invalid verification code.' });
+        }
+        await logAudit(record.user_id, 'Verification Code Verified', req);
+        return res.status(200).json({ message: 'Code verified successfully.' });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// 12. RESEND RESET CODE
+router.post('/resend-reset-code', async (req, res) => {
+    try {
+        const { resetToken } = req.body;
+        if (!resetToken) {
+            return res.status(400).json({ error: 'Reset token is required' });
+        }
+        const record = await get(`
+      SELECT r.*, u.email FROM password_resets r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.reset_token = ?
+    `, [resetToken]);
+        const successMessage = "If an account exists with this email, we've sent a verification code.";
+        if (!record) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            const dummyToken = crypto.randomUUID();
+            return res.status(200).json({ message: successMessage, resetToken: dummyToken });
+        }
+        // Check cooldown of 60 seconds
+        const elapsedSeconds = (Date.now() - new Date(record.created_at).getTime()) / 1000;
+        if (elapsedSeconds < 60) {
+            const waitTime = Math.ceil(60 - elapsedSeconds);
+            return res.status(429).json({ error: `Please wait ${waitTime} seconds before requesting a new code.` });
+        }
+        // Invalidate the old reset code record
+        await run('UPDATE password_resets SET used_at = ? WHERE id = ?', [new Date().toISOString(), record.id]);
+        // Create a new code record under a new reset token
+        const newResetToken = crypto.randomUUID();
+        const code = crypto.randomInt(100000, 999999).toString();
+        const hashedCode = hashOTP(code);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+        const ua = req.headers['user-agent'] || 'Unknown';
+        const newCreatedAt = new Date().toISOString();
+        await run(`
+      INSERT INTO password_resets (user_id, reset_token, hashed_code, expires_at, created_at, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [record.user_id, newResetToken, hashedCode, expiresAt, newCreatedAt, ip, ua]);
+        await emailService.sendResetEmail(record.email, code);
+        await logAudit(record.user_id, 'Verification Code Resent', req);
+        return res.status(200).json({ message: successMessage, resetToken: newResetToken });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// 13. RESET PASSWORD SUBMISSION
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { resetToken, password, confirmPassword } = req.body;
+        if (!resetToken || !password || !confirmPassword) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+        if (password !== confirmPassword) {
+            return res.status(400).json({ error: 'Passwords do not match' });
+        }
+        // Validate password strength
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+        }
+        if (!/[A-Z]/.test(password)) {
+            return res.status(400).json({ error: 'Password must contain at least one uppercase letter.' });
+        }
+        if (!/[a-z]/.test(password)) {
+            return res.status(400).json({ error: 'Password must contain at least one lowercase letter.' });
+        }
+        if (!/\d/.test(password)) {
+            return res.status(400).json({ error: 'Password must contain at least one number.' });
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            return res.status(400).json({ error: 'Password must contain at least one special character.' });
+        }
+        // Find the verified reset code record
+        const record = await get(`
+      SELECT r.*, u.password_hash FROM password_resets r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.reset_token = ? AND r.used_at IS NULL
+    `, [resetToken]);
+        if (!record) {
+            await logAudit(null, 'Password Reset Failed: Token not found or already used', req);
+            return res.status(400).json({ error: 'Invalid or expired reset token.' });
+        }
+        const now = new Date().toISOString();
+        if (record.expires_at < now) {
+            await run('UPDATE password_resets SET used_at = ? WHERE id = ?', [now, record.id]);
+            await logAudit(record.user_id, 'Password Reset Failed: Reset token expired', req);
+            return res.status(400).json({ error: 'Reset request has expired.' });
+        }
+        // Prevent password reuse
+        const isSamePassword = await bcrypt.compare(password, record.password_hash);
+        if (isSamePassword) {
+            return res.status(400).json({ error: 'New password must be different from your current password.' });
+        }
+        // Hash and update user's password
+        const hashed = await bcrypt.hash(password, 10);
+        const passwordChangedAt = new Date().toISOString();
+        await run('UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?', [hashed, passwordChangedAt, record.user_id]);
+        // Mark current reset token as used and invalidate all other reset requests for this user
+        await run('UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL', [passwordChangedAt, record.user_id]);
+        await logAudit(record.user_id, 'Password Successfully Changed', req);
+        return res.status(200).json({ message: 'Your password has been changed successfully. Please sign in with your new password.' });
     }
     catch (err) {
         res.status(500).json({ error: err.message });

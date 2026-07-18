@@ -1,2 +1,7 @@
 node_modules
-node_modules
+dist
+dist-server
+emails_debug.html
+.env
+*.db
+*.db.bak
