@@ -8,9 +8,6 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('receipts', 'receipts', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Enable RLS on storage.objects if not already enabled
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
 -- Allow public read access to files inside receipts bucket
 CREATE POLICY "Public Read Access to Receipts Bucket"
   ON storage.objects FOR SELECT
